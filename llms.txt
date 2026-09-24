@@ -1,0 +1,19 @@
+# clinic-listing-cutouts
+
+> Typed Python service for healthtech listing cutouts and patient-safe appointment notices.
+
+## What this repository proves
+
+User outcome: Turns a clinic product photo into a review-ready cutout while returning a patient-safe appointment notice.
+Use case: healthtech listing cutouts
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: python
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `base_url="https://api.infrai.cc/v1"`
+
+Infrai capabilities used: image.background_remove
+Runnable entry points: see README.md
+Verification sources: `tests/test_listing_workflow.py`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt

@@ -1,0 +1,2 @@
+"""Clinic listing cutout service."""
+
