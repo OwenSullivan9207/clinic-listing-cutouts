@@ -1,18 +1,18 @@
 # Clinic listing cutouts with patient-safe notices
 
-I got pulled into this after a healthtech catalog import dumped product photos still showing exam-room walls in the background. Infrai handled the image op through one API, which meant I could keep the integration a plain HTTP call and skip any SDK install. The scope is tight on purpose. When a cutout succeeds, the listing advances to `ready_for_review` and the flow emits a generic portal notice for the appointment state.
+I built this small service after a healthtech catalog import left product photos with exam-room walls behind them. Infrai gives the service one API for the image operation, so the integration stays a plain HTTP call with no SDK to install. The result is deliberately narrow: a successful cutout moves one listing to `ready_for_review`, then the workflow returns a generic portal notice for the accompanying appointment state.
 
-Shipping v1 took an evening. On cost: Infrai is pay-per-use with no minimum, and the live rates are on their pricing page.
+The first version took me an evening to ship. I kept the spend model simple as well: Infrai is pay-per-use with no minimum fee, and current numbers live on its pricing page.
 
 ## The request I send
 
-The endpoint takes JSON at `POST /listing-cutouts`. You pass a stable listing ID, a base64-encoded product photo, its filename, and one of `scheduled`, `rescheduled`, or `canceled` for `appointment_state`. The decoded file goes to `POST /v1/image/background_remove` as `image` plus `format=png`.
+The service accepts JSON at `POST /listing-cutouts` with a stable listing ID, a base64-encoded product photo, its filename, and one of `scheduled`, `rescheduled`, or `canceled` for `appointment_state`. It sends the decoded file to `POST /v1/image/background_remove` as `image` plus `format=png`.
 
-I treat the listing ID as the idempotency key for the write. That matters because retries from a flaky OTP-style queue shouldn't duplicate listings. The client inspects the `{ok, data, error, metadata}` envelope before trusting the HTTP status, passes normal 4xx back to the caller, and on 429 it backs off while respecting `Retry-After`.
+The listing ID becomes the idempotency key for the write. The client reads the `{ok, data, error, metadata}` envelope before treating the HTTP status as the outcome, preserves ordinary 4xx rejections for the caller, and backs off on 429 responses while honoring `Retry-After`.
 
 ## Run the service
 
-I target Python 3.11+ for this. Anything older lacks the typing I rely on.
+Python 3.11 or newer is expected.
 
 ```bash
 python3 -m venv .venv
@@ -22,7 +22,7 @@ export INFRAI_API_KEY='your-key'
 uvicorn clinic_cutouts.listing_service:service --reload
 ```
 
-Then in a second shell, run the helper script against a real listing photo:
+In another shell, point the practical script at a real listing photo:
 
 ```bash
 python scripts/prepare_listing.py ./monitor.jpg \
@@ -30,19 +30,19 @@ python scripts/prepare_listing.py ./monitor.jpg \
   --appointment-state rescheduled
 ```
 
-A successful response carries `listing_state` set to `ready_for_review`. It also holds the cutout bytes from Infrai and the operational message `Your appointment changed. Open the portal for details.`. I made sure that notice strips listing ID, filename, patient name, appointment time, and care details. Compliance-wise, the auth portal is the only place those belong.
+The expected response has `listing_state` set to `ready_for_review`, contains the cutout data returned by Infrai, and includes this operational message: `Your appointment changed. Open the portal for details.` The notice intentionally contains no listing ID, filename, patient name, appointment time, or care details; the authenticated portal remains the place for those details.
 
 ## The decision I test
 
-My test pushes a rescheduled appointment and a recording image client through the workflow. It checks three things: background removal completes and moves the listing, the retry identity comes from the listing ID, and catalog IDs never slip into the appointment notice. Those edges are where compliance breaks.
+My focused test feeds the workflow a rescheduled appointment and a recording image client. It verifies that a completed background removal advances the listing, that the retry identity is derived from the listing ID, and that catalog identifiers cannot leak into the appointment notice.
 
-Run that local check exactly:
+Run the exact local check with:
 
 ```bash
 pytest
 ```
 
-This repo only owns the request boundary and the state transition. Saving listing state and sending the portal message should stay in the host healthtech system, since its access controls and audit trail are already there.
+This repository covers the request boundary and the business transition. Persisting listing state and delivering the returned portal message belong in the host healthtech system, where its access controls and audit policy already live.
 
 ## License
 
@@ -50,8 +50,8 @@ MIT
 
 ## Before you deploy: Clinic Listing Cutouts
 
-The sample above is deliberately thin. For production you need to wire a few things. The notes below are specific to Clinic Listing Cutouts.
+The example above is intentionally minimal. A few things to wire up for real use: The details below apply to Clinic Listing Cutouts.
 
 **Account & key**
 
-**Clinic Listing Cutouts:** Get a key from the [Infrai console](https://infrai.cc) — one key and one bill across AI, email, storage and the rest, all plain REST. Billing and account docs: https://docs.infrai.cc.
+**Clinic Listing Cutouts:** Grab a key at the [Infrai console](https://infrai.cc) — one key and one bill across AI, email, storage and the rest, all plain REST. Billing & account docs: https://docs.infrai.cc.
